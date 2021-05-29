@@ -11,12 +11,15 @@ import { map } from 'rxjs/operators';
 export class AppComponent implements OnInit {
   readonly Highcharts: typeof Highcharts = Highcharts;
 
-  readonly data = [4, 4, 12];
+  readonly data = [
+    ['Apples', 15],
+    ['Oranges', 5],
+    ['Kiwis', 10],
+    ['Strawberries', 20]
+  ];
 
   options$: Observable<Highcharts.Options>;
   startAngle$ = new BehaviorSubject<number>(0);
-
-  constructor(private _ngZone: NgZone) {}
 
   ngOnInit(): void {
     this.options$ = this.startAngle$.pipe(
@@ -33,15 +36,23 @@ export class AppComponent implements OnInit {
       title: {
         text: 'Rotating pie chart'
       },
+      subtitle: {
+        text:
+          'Select data point and chart will rotate so it is positioned to the right'
+      },
       plotOptions: {
         series: {
           allowPointSelect: true,
           point: {
             events: {
               select() {
-                _this._ngZone.run(() =>
-                  _this.recalculateAngle(this)
-                );
+                _this.recalculateAngle(this);
+              },
+              legendItemClick() {
+                const selectedPoint = this.series.points.find(p => p.selected);
+                if (selectedPoint) {
+                  setTimeout(() => _this.recalculateAngle(selectedPoint));
+                }
               }
             }
           }
@@ -57,22 +68,29 @@ export class AppComponent implements OnInit {
           innerSize: '80%',
           dataLabels: {
             enabled: false
-          }
+          },
+          showInLegend: true
         }
-      ]
+      ],
+      legend: {
+        enabled: true,
+        align: 'right'
+      }
     };
   }
 
   recalculateAngle(point: Highcharts.Point): void {
     const targetAngle = 90;
     const preceedingAngle = point.series.points
-      .filter((_, index) => index < point.index) // preceeding points
+      .filter(p => p.visible)
+      .filter(p => p.index < point.index) // preceeding points
       .map(p => p.percentage)
       .map(AppComponent.percentageToDegree)
       .reduce((a, b) => a + b, 0);
     const pointMiddleAngle =
       AppComponent.percentageToDegree(point.percentage) / 2;
     const startAngle = targetAngle - pointMiddleAngle - preceedingAngle;
+    console.log(startAngle);
     this.startAngle$.next(startAngle);
   }
 
